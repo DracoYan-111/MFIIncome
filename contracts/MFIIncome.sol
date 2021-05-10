@@ -6,45 +6,52 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract mfiincone is Ownable {
     //--------------------------- EVENT --------------------------
     /*
-    MFI存款事件
-    传入 用户地址,存款数量,区块跨度
-    */
-    event MFIDeposit(address userAddr, uint256 count, uint256 time);
-
-    /*
     MFI取款事件
     传入 用户地址,取款数量,当前区块号
     */
     event MFIWithdrawal(address userAddr, uint256 count, uint256 time);
-
-    /*
-    MFI退款事件
-    传入 用户地址,退款数量,当前区块号
-    */
-    event MFIDropOut(address userAddr, uint256 count, uint256 time);
 
     using SafeERC20 for ERC20;
     using SafeMath for uint256;
 
     //MFI地址
     ERC20 public MfiAddress;
-    //Mfi总数
+    //Mfi可提取总数
     uint256 public MFICount;
-    //存款数量(默认500个)
-    uint256 public DepositCount = 500e18;
+    //领取间隔
+    uint256 CollectionInterval;
+    //下次领取时间
+    uint256 NextCollectionTime;
+    //每个周期产出数量
+    uint256 CycleOutput;
+    //节点用户
+    address[] userAddress;
+    //超级节点用户
+    address[] superUserAddress;
 
-    //--------------------------- STRUCT --------------------------
     struct userCount {
-        uint256 userDepositCount;
-        uint256 userWithdrawalCount;
-        uint256 time;
+        //用户已领取数量
+        uint256 UserHasReceivedCount;
+        //用户领取次数
+        uint256 Count;
     }
 
     //--------------------------- MAPPING --------------------------
     mapping(address => userCount) userData;
 
 
+    modifier TimeLock(){
+        require(block.number > NextCollectionTime, "not enough time:(");
+        _;
+    }
     //---------------------------ADMINISTRATOR FUNCTION --------------------------
+
+    constructor(ERC20 _mfiAddress, uint256 _BlockInterval, uint256 _CycleOutput) public {
+        MfiAddress = _mfiAddress;
+        CollectionInterval = _BlockInterval;
+        CycleOutput = _CycleOutput;
+    }
+
     /*
     设置MFI地址
     传入 mfi地址
@@ -54,21 +61,21 @@ contract mfiincone is Ownable {
     }
 
     /*
-    设置用户奖励总数
-    传入 用户数组,奖励数组
+    设置用户奖励
+    传入 用户数组
     */
-    function SetUserRewardCount(address[] memory _userAddres, uint256[] memory _userCounts) external onlyOwner {
-        for (uint256 i = 0; i < _userAddres.length; i++) {
-            userData[_userAddres[i]].userWithdrawalCount = _userCounts[i];
+    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner {
+        userAddress = _userAddress;
+        superUserAddress = _superUserAddress;
+        uint256 count = GetReward(userAddress);
+        for (uint256 i = 0; i < _userAddress.length; i++) {
+            userData[userAddress[i]].UserHasReceivedCount = count;
         }
-    }
-
-    /*
-    设置存款数量
-    传入 存款数量
-    */
-    function SetDepositCount(uint256 _depositCount) external onlyOwner {
-        DepositCount = _depositCount;
+        uint256 count1 = GetReward(superUserAddress);
+        for (uint256 i = 0; i < _userAddress.length; i++) {
+            userData[userAddress[i]].UserHasReceivedCount = count1;
+        }
+        NextCollectionTime = block.number + CollectionInterval;
     }
 
     /*
@@ -79,74 +86,53 @@ contract mfiincone is Ownable {
         MfiAddress.safeTransfer(_userAddr, _count);
     }
 
+    /*
+    设置领取间隔
+    传入 区块间隔
+    */
+    function SetCollectionInterval(uint256 _BlockInterval) external onlyOwner {
+        CollectionInterval = _BlockInterval;
+    }
+
+    /*
+    设置产出数量
+    传入 产出数量
+    */
+    function SetCycleOutput(uint256 _CycleOutput) external onlyOwner {
+        CycleOutput = _CycleOutput;
+    }
+
     //---------------------------INQUIRE FUNCTION --------------------------
     /*
-    查看MFI用户余额
-    返回 mfi数量
+    查看MFI用户信息
+    返回 可领取数量,未领取数量,领取次数
     */
-    function GetUserBalance() public view returns (uint256){
-        return MfiAddress.balanceOf(msg.sender);
+    function GetUserInformation() public view returns (userCount memory){
+        return userData[msg.sender];
     }
 
     /*
-    查看用户质押总数
-    返回 用户质押mfi总数
+    查看用户总数
+    返回 用户数量,用户列表
     */
-    function GetUserWithdrawalCount() public view returns (uint256){
-        return userData[msg.sender].userWithdrawalCount;
+    function GetUserCount() public view returns (uint256, address[] memory){
+        return (userAddress.length, userAddress);
     }
 
     /*
-    查看用户奖励总数
-    返回 用户奖励总数
+    计算用户应得奖励数
     */
-    function GetUserDepositCount() public view returns (uint256){
-        return userData[msg.sender].userDepositCount;
+    function GetReward(address[] memory _users) private view returns (uint256){
+        return CycleOutput.div(_users.length);
     }
-
     //--------------------------- USER FUNCTION --------------------------
     /*
-    存款
-    传入 存款数量
+    领取奖励
     */
-    function deposit(uint256 _time) external {
-        require(GetUserBalance() >= DepositCount, "Insufficient balance:(");
-        MfiAddress.safeIncreaseAllowance(address(this), DepositCount);
-        MfiAddress.safeTransferFrom(msg.sender, address(this), DepositCount);
-        bool judgment;
-        (judgment, userData[msg.sender].userDepositCount) = userData[msg.sender].userDepositCount.tryAdd(DepositCount);
-        (judgment, MFICount) = MFICount.tryAdd(DepositCount);
-        (judgment, userData[msg.sender].time) = block.number.tryAdd(_time);
-        if (judgment == false) {
-            revert("Calculation Error:(");
-        }
-        emit MFIDeposit(msg.sender, userData[msg.sender].userDepositCount, userData[msg.sender].time);
-    }
-
-    /*
-    退款
-    */
-    function dropOut() external {
-        require(userData[msg.sender].time > block.number, "Time is not up...");
-        require(userData[msg.sender].userDepositCount >= DepositCount, "Insufficient count:(");
-        MfiAddress.safeTransfer(msg.sender, userData[msg.sender].userDepositCount);
-        bool judgment;
-        (judgment, MFICount) = MFICount.trySub(userData[msg.sender].userDepositCount);
-        if (judgment == false) {
-            revert("Calculation Error:(");
-        }
-        emit MFIDropOut(msg.sender, userData[msg.sender].userDepositCount, block.number);
-        userData[msg.sender].userDepositCount = 0;
-    }
-
-    /*
-    取款
-    传入 取款数量
-    */
-    function withdrawal(uint256 _count) external {
-        require(GetUserWithdrawalCount() >= _count, "Insufficient amount of withdrawals:(");
-        MfiAddress.safeTransfer(msg.sender, _count);
-        (, userData[msg.sender].userWithdrawalCount) = userData[msg.sender].userWithdrawalCount.trySub(_count);
-        emit MFIWithdrawal(msg.sender, _count, block.number);
+    function ReceiveAward() external TimeLock {
+        require(userData[msg.sender].UserHasReceivedCount > 0, "Without your reward:(");
+        MfiAddress.safeTransfer(msg.sender, userData[msg.sender].UserHasReceivedCount);
+        userData[msg.sender].UserHasReceivedCount = 0;
+        userData[msg.sender].Count++;
     }
 }
