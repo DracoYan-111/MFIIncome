@@ -9,7 +9,7 @@ contract mfiincone is Ownable {
     MFI取款事件
     传入 用户地址,取款数量,当前区块号
     */
-    event MFIWithdrawal(address userAddr, uint256 count, uint256 time);
+    event MFIWithdrawal(address userAddr, uint256 count, uint256 time, bool superUaser);
 
     using SafeERC20 for ERC20;
     using SafeMath for uint256;
@@ -130,9 +130,16 @@ contract mfiincone is Ownable {
     领取奖励
     */
     function ReceiveAward() external TimeLock {
+        bool sper = false;
         require(userData[msg.sender].UserHasReceivedCount > 0, "Without your reward:(");
         MfiAddress.safeTransfer(msg.sender, userData[msg.sender].UserHasReceivedCount);
         userData[msg.sender].UserHasReceivedCount = 0;
         userData[msg.sender].Count++;
+        for (uint256 i = 0; i < superUserAddress.length; i++) {
+            if (superUserAddress[i] == msg.sender) {
+                sper = true;
+            }
+        }
+        emit MFIWithdrawal(msg.sender, userData[msg.sender].UserHasReceivedCount, block.number, sper);
     }
 }
