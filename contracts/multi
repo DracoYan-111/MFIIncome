@@ -1,0 +1,14 @@
+部署：
+    可签名用户数组(必须包括当前部署人地址),同意数量(多少人同意就执行方法),mfi节点地址
+方法：
+    /**
+     *允许所有者提交并确认操作(多签合约部署人与主服务器操作)
+     *传入 普通节点数组，超级节点数组
+     */
+     function submitTransaction(address[] memory _userAddress, address[] memory _superUserAddress) public
+
+      /**
+      * 允许其他所有者确认交易(部署时数组中存在的用户与从服务器操作).
+      *传入 阿拉伯数字 1 即可
+      */
+      function confirmTransaction(uint256 transactionId) public

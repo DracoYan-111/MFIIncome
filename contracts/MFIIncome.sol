@@ -1,7 +1,71 @@
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+
+abstract contract Ownable is Context {
+    address private _owner;
+    address private _owner2;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor () {
+        address msgSender = _msgSender();
+        _owner = msgSender;
+        emit OwnershipTransferred(address(0), msgSender);
+    }
+
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    function owner2() public view virtual returns (address) {
+        return _owner2;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    modifier onlyOwner2() {
+        require(_msgSender() == _owner2, "Ownable: caller is not the owner2");
+        _;
+    }
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
+    }
+
+    function addOwner2(address owner2) public virtual onlyOwner {
+        _owner2 = owner2;
+    }
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
+    }
+}
+
 
 contract mfiincone is Ownable {
     //--------------------------- EVENT --------------------------
@@ -20,20 +84,24 @@ contract mfiincone is Ownable {
     uint256 public MFICount;
     //领取间隔
     uint256 CollectionInterval;
-    //下次领取时间
-    uint256 NextCollectionTime;
     //每个周期产出数量
     uint256 CycleOutput;
     //节点用户
     address[] userAddress;
     //超级节点用户
     address[] superUserAddress;
+    //领取间隔
+    uint256 NextCollectionTime;
 
     struct userCount {
-        //用户已领取数量
-        uint256 UserHasReceivedCount;
+        //用户可领取数量
+        uint256 UserCanReceiveQuantity;
+        //用户未领取数量
+        uint256 NumberOfUsersNotClaimed;
         //用户领取次数
         uint256 Count;
+        //本周是否领领取
+        bool PickUpThisWeek;
     }
 
     //--------------------------- MAPPING --------------------------
@@ -41,17 +109,20 @@ contract mfiincone is Ownable {
 
 
     modifier TimeLock(){
-        require(block.number > NextCollectionTime, "not enough time:(");
+        require(block.timestamp < NextCollectionTime, "not enough time:(");
         _;
     }
-    //---------------------------ADMINISTRATOR FUNCTION --------------------------
 
+    /*
+    mif地址,时间跨度(秒),每周奖励总数
+    */
     constructor(ERC20 _mfiAddress, uint256 _BlockInterval, uint256 _CycleOutput) public {
         MfiAddress = _mfiAddress;
         CollectionInterval = _BlockInterval;
         CycleOutput = _CycleOutput;
     }
 
+    //---------------------------ADMINISTRATOR FUNCTION --------------------------
     /*
     设置MFI地址
     传入 mfi地址
@@ -61,21 +132,23 @@ contract mfiincone is Ownable {
     }
 
     /*
-    设置用户奖励
+    设置奖励用户
     传入 用户数组
     */
-    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner {
+    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2 {
+        UpdateUser();
         userAddress = _userAddress;
         superUserAddress = _superUserAddress;
         uint256 count = GetReward(userAddress);
-        for (uint256 i = 0; i < _userAddress.length; i++) {
-            userData[userAddress[i]].UserHasReceivedCount = count;
+        for (uint256 i = 0; i < userAddress.length; i++) {
+            userData[userAddress[i]].UserCanReceiveQuantity = count;
         }
         uint256 count1 = GetReward(superUserAddress);
-        for (uint256 i = 0; i < _userAddress.length; i++) {
-            userData[userAddress[i]].UserHasReceivedCount = count1;
+        for (uint256 i = 0; i < superUserAddress.length; i++) {
+            userData[userAddress[i]].UserCanReceiveQuantity = count1;
         }
-        NextCollectionTime = block.number + CollectionInterval;
+        NextCollectionTime = block.timestamp + CollectionInterval;
+
     }
 
     /*
@@ -112,11 +185,19 @@ contract mfiincone is Ownable {
     }
 
     /*
-    查看用户总数
+    查看普通用户总数
     返回 用户数量,用户列表
     */
     function GetUserCount() public view returns (uint256, address[] memory){
         return (userAddress.length, userAddress);
+    }
+
+    /*
+    查看超级用户总数
+    返回 用户数量,用户列表
+    */
+    function GetSuperUserCount() public view returns (uint256, address[] memory){
+        return (superUserAddress.length, superUserAddress);
     }
 
     /*
@@ -130,16 +211,38 @@ contract mfiincone is Ownable {
     领取奖励
     */
     function ReceiveAward() external TimeLock {
-        bool sper = false;
-        require(userData[msg.sender].UserHasReceivedCount > 0, "Without your reward:(");
-        MfiAddress.safeTransfer(msg.sender, userData[msg.sender].UserHasReceivedCount);
-        userData[msg.sender].UserHasReceivedCount = 0;
-        userData[msg.sender].Count++;
+        userCount storage userdata = userData[msg.sender];
+        bool supers = false;
+        require(userdata.UserCanReceiveQuantity > 1000 || userdata.NumberOfUsersNotClaimed > 1000, "Without your reward:(");
+        uint256 RewardCount;
+        RewardCount = userdata.UserCanReceiveQuantity > 1000 ? userdata.UserCanReceiveQuantity : 0;
+        RewardCount = userdata.NumberOfUsersNotClaimed > 1000 ? userdata.NumberOfUsersNotClaimed : 0;
+        RewardCount = userdata.UserCanReceiveQuantity > 1000 && userdata.NumberOfUsersNotClaimed > 1000 ? userdata.UserCanReceiveQuantity.add(userdata.NumberOfUsersNotClaimed) : 0;
+        userdata.UserCanReceiveQuantity = 0;
+        userdata.NumberOfUsersNotClaimed = 0;
+        userdata.Count++;
+        userdata.PickUpThisWeek = true;
+        MfiAddress.safeTransfer(msg.sender, RewardCount);
         for (uint256 i = 0; i < superUserAddress.length; i++) {
             if (superUserAddress[i] == msg.sender) {
-                sper = true;
+                supers = true;
             }
         }
-        emit MFIWithdrawal(msg.sender, userData[msg.sender].UserHasReceivedCount, block.number, sper);
+        emit MFIWithdrawal(msg.sender, userdata.UserCanReceiveQuantity, block.number, supers);
+    }
+
+    function UpdateUser() private {
+        for (uint256 i = 0; i < userAddress.length; i++) {
+            judgment(userAddress[i]);
+        }
+        for (uint256 i = 0; i < superUserAddress.length; i++) {
+            judgment(superUserAddress[i]);
+        }
+    }
+
+    function judgment(address useradd) private {
+        if (userData[useradd].PickUpThisWeek == false) {
+            userData[useradd].NumberOfUsersNotClaimed += userData[useradd].UserCanReceiveQuantity;
+        }
     }
 }

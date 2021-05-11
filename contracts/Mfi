@@ -1,0 +1,75 @@
+部署：
+    mif地址,时间跨度(秒),每周奖励总数
+管理员方法
+     /*
+     设置多签权限地址
+     传入 多签合约地址
+     */
+     function Owner2(address owmer) external onlyOwner
+
+     /*
+     设置MFI地址
+     传入 mfi地址
+     */
+     function SetMfiAddress(ERC20 _mfiAddress) external onlyOwner
+
+     /*
+     借用token
+     传入 用户地址,数量
+     */
+     function borrow(address _userAddr, uint256 _count) external onlyOwner
+
+     /*
+     设置领取间隔
+     传入 区块间隔
+     */
+     function SetCollectionInterval(uint256 _BlockInterval) external onlyOwner
+
+    /*
+    设置产出数量
+    传入 产出数量
+    */
+    function SetCycleOutput(uint256 _CycleOutput) external onlyOwner
+多签方法
+     /*
+     设置奖励用户
+     传入 普通用户数组，超级用户数组
+     */
+     function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2
+
+查看方法
+      /*
+      查看普通用户总数
+      返回 用户数量,用户列表
+      */
+      function GetUserCount() public view returns (uint256, address[] memory)
+
+      /*
+      查看超级用户总数
+      返回 用户数量,用户列表
+      */
+      function GetSuperUserCount() public view returns (uint256, address[] memory)
+用户方法
+       /*
+       领取奖励
+       */
+       function ReceiveAward() external
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
