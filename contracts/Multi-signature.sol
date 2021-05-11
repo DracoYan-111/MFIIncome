@@ -138,10 +138,11 @@ contract MultiSig {
             txn.executed = true;
             if (externalCall(destination, txn.value, txn.data.length, txn.data)) {
                 emit Execution(transactionId);
-                for (uint256 i = 0; i < owners.length; i++) {
+               
+            } 
+			for (uint256 i = 0; i < owners.length; i++) {
                     confirmations[transactionId][owners[i]] = false;
                 }
-            }
         }
     }
 
