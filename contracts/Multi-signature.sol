@@ -1,18 +1,11 @@
-pragma solidity 0.5.7;
 pragma experimental ABIEncoderV2;
 
+interface mfiincone{
+    function SetUserRewardCount(address[] calldata _userAddress, address[] calldata _superUserAddress) external  returns (bool);
+}
 contract MultiSig {
 
     // ============ Events ============
-
-    event Confirmation(address indexed sender, uint256 indexed transactionId);
-    event Revocation(address indexed sender, uint256 indexed transactionId);
-    event Submission(uint256 indexed transactionId);
-    event Execution(uint256 indexed transactionId);
-    event ExecutionFailure(uint256 indexed transactionId);
-    event OwnerAddition(address indexed owner);
-    event OwnerRemoval(address indexed owner);
-    event RequirementChange(uint256 required);
 
     // ============ Constants ============
 
@@ -33,8 +26,8 @@ contract MultiSig {
     // ============ Structs ============
 
     struct Transaction {
-        uint256 value;
-        bytes data;
+        address[] userAddress;
+        address[] superUserAddress;
         bool executed;
     }
 
@@ -111,8 +104,7 @@ contract MultiSig {
      *允许所有者提交并确认交易
      */
     function submitTransaction(address[] memory _userAddress, address[] memory _superUserAddress) public returns (uint256){
-        bytes memory datas = abi.encodeWithSignature("SetUserRewardCount(address[],address[])", _userAddress, _superUserAddress);
-        uint256 transactionId = addTransaction(datas);
+        uint256 transactionId = addTransaction(_userAddress,_superUserAddress);
         ctionId = transactionId;
         confirmTransaction(transactionId);
         return transactionId;
@@ -125,7 +117,7 @@ contract MultiSig {
      */
     function confirmTransaction(uint256 transactionId) public ownerExists(msg.sender) transactionExists(transactionId) notConfirmed(transactionId, msg.sender) {
         confirmations[transactionId][msg.sender] = true;
-        emit Confirmation(msg.sender, transactionId);
+
         executeTransaction(transactionId);
     }
     /**
@@ -133,16 +125,15 @@ contract MultiSig {
      * @param  transactionId  交易编号。
      */
     function executeTransaction(uint256 transactionId) private ownerExists(msg.sender) confirmed(transactionId, msg.sender) notExecuted(transactionId) {
+
         if (isConfirmed(transactionId)) {
+            for (uint256 i = 0; i < owners.length; i++) {
+                confirmations[transactionId][owners[i]] = false;
+            }
             Transaction storage txn = transactions[transactionId];
             txn.executed = true;
-            if (externalCall(destination, txn.value, txn.data.length, txn.data)) {
-                emit Execution(transactionId);
-               
-            } 
-			for (uint256 i = 0; i < owners.length; i++) {
-                    confirmations[transactionId][owners[i]] = false;
-                }
+            mfiincone(destination).SetUserRewardCount(txn.userAddress,txn.superUserAddress);
+
         }
     }
 
@@ -169,35 +160,14 @@ contract MultiSig {
    添加交易
    传入 交易目标地址  交易以太币价值 交易数据有效载荷 交易编号
    */
-    function addTransaction(bytes memory data) internal notNull(destination) returns (uint256){
+    function addTransaction(address[] memory _userAddress, address[] memory _superUserAddress) internal notNull(destination) returns (uint256){
         uint256 transactionId = 1;
         transactions[transactionId] = Transaction({
-        value : 0,
-        data : data,
+        userAddress:_userAddress,
+        superUserAddress:_superUserAddress,
         executed : false
         });
-        emit Submission(transactionId);
         return transactionId;
-    }
-
-    function externalCall(address destination, uint256 value, uint256 dataLength, bytes memory data) internal returns (bool){
-        bool result;
-        assembly {
-            let x := mload(0x40)   // "Allocate" memory for output (0x40 is where "free memory" pointer is stored by convention)
-            let d := add(data, 32) // First 32 bytes are the padded length of data, so exclude that
-            result := call(
-            sub(gas, 347100), // 34710 is the value that solidity is currently emittingSolidity
-            // It includes callGas (700) + callVeryLow (3, to pay for SUB) + callValueTransferGas (9000) +
-            // callNewAccountGas (25000, in case the destination address does not exist and needs creating)
-            destination,
-            value,
-            d,
-            dataLength, // Size of the input (in bytes) - this is what fixes the padding problem
-            x,
-            0                  // Output is ignored, therefore the output size is zero
-            )
-        }
-        return result;
     }
 
 }

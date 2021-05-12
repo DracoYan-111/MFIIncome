@@ -37,7 +37,7 @@ abstract contract Ownable is Context {
     }
 
     modifier onlyOwner2() {
-        require(_msgSender() == _owner2, "Ownable: caller is not the owner2");
+        require(_msgSender() == _owner2 || owner() == _msgSender(), "Ownable: caller is not the owner2");
         _;
     }
     /**
@@ -109,7 +109,7 @@ contract mfiincone is Ownable {
 
 
     modifier TimeLock(){
-        require(block.timestamp < NextCollectionTime, "not enough time:(");
+        require(block.timestamp > NextCollectionTime, "not enough time:(");
         _;
     }
 
@@ -135,20 +135,22 @@ contract mfiincone is Ownable {
     设置奖励用户
     传入 用户数组
     */
-    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2 {
+    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2  returns (bool){
         UpdateUser();
         userAddress = _userAddress;
         superUserAddress = _superUserAddress;
         uint256 count = GetReward(userAddress);
         for (uint256 i = 0; i < userAddress.length; i++) {
             userData[userAddress[i]].UserCanReceiveQuantity = count;
+            userData[userAddress[i]].PickUpThisWeek = false;
         }
         uint256 count1 = GetReward(superUserAddress);
         for (uint256 i = 0; i < superUserAddress.length; i++) {
-            userData[userAddress[i]].UserCanReceiveQuantity = count1;
+            userData[superUserAddress[i]].UserCanReceiveQuantity = count1;
+            userData[userAddress[i]].PickUpThisWeek = false;
         }
         NextCollectionTime = block.timestamp + CollectionInterval;
-
+        return true;
     }
 
     /*
@@ -159,6 +161,10 @@ contract mfiincone is Ownable {
         MfiAddress.safeTransfer(_userAddr, _count);
     }
 
+    function timeee(uint256 timestam) public view returns(uint256 ,uint256 ,uint256 ){
+
+        return( block.timestamp,block.timestamp + timestam,NextCollectionTime);
+    }
     /*
     设置领取间隔
     传入 区块间隔
@@ -215,9 +221,16 @@ contract mfiincone is Ownable {
         bool supers = false;
         require(userdata.UserCanReceiveQuantity > 1000 || userdata.NumberOfUsersNotClaimed > 1000, "Without your reward:(");
         uint256 RewardCount;
-        RewardCount = userdata.UserCanReceiveQuantity > 1000 ? userdata.UserCanReceiveQuantity : 0;
-        RewardCount = userdata.NumberOfUsersNotClaimed > 1000 ? userdata.NumberOfUsersNotClaimed : 0;
-        RewardCount = userdata.UserCanReceiveQuantity > 1000 && userdata.NumberOfUsersNotClaimed > 1000 ? userdata.UserCanReceiveQuantity.add(userdata.NumberOfUsersNotClaimed) : 0;
+
+        if(userdata.NumberOfUsersNotClaimed > 1000 && userdata.UserCanReceiveQuantity < 1000){
+            RewardCount = userdata.NumberOfUsersNotClaimed;
+        }
+        if(userdata.UserCanReceiveQuantity > 1000 && userdata.NumberOfUsersNotClaimed < 1000){
+            RewardCount = userdata.UserCanReceiveQuantity;
+        }
+        if(userdata.UserCanReceiveQuantity > 1000 && userdata.NumberOfUsersNotClaimed > 1000){
+            RewardCount = userdata.UserCanReceiveQuantity.add(userdata.NumberOfUsersNotClaimed);
+        }
         userdata.UserCanReceiveQuantity = 0;
         userdata.NumberOfUsersNotClaimed = 0;
         userdata.Count++;
@@ -243,6 +256,7 @@ contract mfiincone is Ownable {
     function judgment(address useradd) private {
         if (userData[useradd].PickUpThisWeek == false) {
             userData[useradd].NumberOfUsersNotClaimed += userData[useradd].UserCanReceiveQuantity;
+            userData[useradd].UserCanReceiveQuantity = 0;
         }
     }
 }
