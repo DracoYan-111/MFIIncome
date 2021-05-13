@@ -39,6 +39,14 @@
 
 查看方法
       /*
+      查看MFI用户信息
+      传入 用户类型(1为普通节点，大于1为超级节点),用户地址
+      返回 可领取数量,未领取数量,领取次数
+      */
+      function GetUserInformation(uint8 count, address usera) public
+
+
+      /*
       查看普通用户总数
       返回 用户数量,用户列表
       */
@@ -52,8 +60,9 @@
 用户方法
        /*
        领取奖励
+       传入 用户类型(1为普通节点，大于1为超级节点),用户地址
        */
-       function ReceiveAward() external
+       function ReceiveAward(uint count，address uasra) external
 
 
 

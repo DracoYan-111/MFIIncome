@@ -81,17 +81,14 @@ contract mfiincone is Ownable {
     //MFI地址
     ERC20 public MfiAddress;
     //Mfi可提取总数
-    uint256 public MFICount;
-    //领取间隔
-    uint256 CollectionInterval;
+    uint256 public MFICount = 1;
     //每个周期产出数量
     uint256 CycleOutput;
     //节点用户
     address[] userAddress;
     //超级节点用户
     address[] superUserAddress;
-    //领取间隔
-    uint256 NextCollectionTime;
+
 
     struct userCount {
         //用户可领取数量
@@ -104,21 +101,26 @@ contract mfiincone is Ownable {
         bool PickUpThisWeek;
     }
 
+    struct SuperUserCount {
+        //用户可领取数量
+        uint256 UserCanReceiveQuantity;
+        //用户未领取数量
+        uint256 NumberOfUsersNotClaimed;
+        //用户领取次数
+        uint256 Count;
+        //本周是否领领取
+        bool PickUpThisWeek;
+    }
+
     //--------------------------- MAPPING --------------------------
     mapping(address => userCount) userData;
-
-
-    modifier TimeLock(){
-        require(block.timestamp > NextCollectionTime, "not enough time:(");
-        _;
-    }
+    mapping(address => SuperUserCount) SuperUserData;
 
     /*
     mif地址,时间跨度(秒),每周奖励总数
     */
-    constructor(ERC20 _mfiAddress, uint256 _BlockInterval, uint256 _CycleOutput) public {
+    constructor(ERC20 _mfiAddress, uint256 _CycleOutput) public {
         MfiAddress = _mfiAddress;
-        CollectionInterval = _BlockInterval;
         CycleOutput = _CycleOutput;
     }
 
@@ -135,7 +137,7 @@ contract mfiincone is Ownable {
     设置奖励用户
     传入 用户数组
     */
-    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2  returns (bool){
+    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2 returns (bool){
         UpdateUser();
         userAddress = _userAddress;
         superUserAddress = _superUserAddress;
@@ -146,10 +148,9 @@ contract mfiincone is Ownable {
         }
         uint256 count1 = GetReward(superUserAddress);
         for (uint256 i = 0; i < superUserAddress.length; i++) {
-            userData[superUserAddress[i]].UserCanReceiveQuantity = count1;
-            userData[userAddress[i]].PickUpThisWeek = false;
+            SuperUserData[superUserAddress[i]].UserCanReceiveQuantity = count1;
+            SuperUserData[superUserAddress[i]].PickUpThisWeek = false;
         }
-        NextCollectionTime = block.timestamp + CollectionInterval;
         return true;
     }
 
@@ -159,18 +160,6 @@ contract mfiincone is Ownable {
     */
     function borrow(address _userAddr, uint256 _count) external onlyOwner {
         MfiAddress.safeTransfer(_userAddr, _count);
-    }
-
-    function timeee(uint256 timestam) public view returns(uint256 ,uint256 ,uint256 ){
-
-        return( block.timestamp,block.timestamp + timestam,NextCollectionTime);
-    }
-    /*
-    设置领取间隔
-    传入 区块间隔
-    */
-    function SetCollectionInterval(uint256 _BlockInterval) external onlyOwner {
-        CollectionInterval = _BlockInterval;
     }
 
     /*
@@ -186,8 +175,28 @@ contract mfiincone is Ownable {
     查看MFI用户信息
     返回 可领取数量,未领取数量,领取次数
     */
-    function GetUserInformation() public view returns (userCount memory){
-        return userData[msg.sender];
+    function GetUserInformation(uint8 count, address usera) public view returns (uint256, uint256, uint256, bool){
+        //用户可领取数量
+        uint256 UserCanReceiveQuantity;
+        //用户未领取数量
+        uint256 NumberOfUsersNotClaimed;
+        //用户领取次数
+        uint256 Count;
+        //本周是否领领取
+        bool PickUpThisWeek;
+        if (count == 1) {
+            UserCanReceiveQuantity = userData[usera].UserCanReceiveQuantity;
+            NumberOfUsersNotClaimed = userData[usera].NumberOfUsersNotClaimed;
+            Count = userData[usera].Count;
+            PickUpThisWeek = userData[usera].PickUpThisWeek;
+            return (UserCanReceiveQuantity, NumberOfUsersNotClaimed, Count, PickUpThisWeek);
+        } else {
+            UserCanReceiveQuantity = SuperUserData[usera].UserCanReceiveQuantity;
+            NumberOfUsersNotClaimed = SuperUserData[usera].NumberOfUsersNotClaimed;
+            Count = SuperUserData[usera].Count;
+            PickUpThisWeek = SuperUserData[usera].PickUpThisWeek;
+            return (UserCanReceiveQuantity, NumberOfUsersNotClaimed, Count, PickUpThisWeek);
+        }
     }
 
     /*
@@ -209,39 +218,50 @@ contract mfiincone is Ownable {
     /*
     计算用户应得奖励数
     */
-    function GetReward(address[] memory _users) private view returns (uint256){
+    function GetReward(address[] memory _users) public view returns (uint256){
         return CycleOutput.div(_users.length);
     }
+
+
     //--------------------------- USER FUNCTION --------------------------
     /*
     领取奖励
     */
-    function ReceiveAward() external TimeLock {
-        userCount storage userdata = userData[msg.sender];
-        bool supers = false;
-        require(userdata.UserCanReceiveQuantity > 1000 || userdata.NumberOfUsersNotClaimed > 1000, "Without your reward:(");
+    function ReceiveAward(uint8 count, address userAddr) external {
+        userCount storage userdata = userData[userAddr];
+        SuperUserCount storage superUserData = SuperUserData[userAddr];
+        uint256 UserCanReceiveQuantity;
+        uint256 NumberOfUsersNotClaimed;
+        if (count == 1) {
+            UserCanReceiveQuantity = userdata.UserCanReceiveQuantity;
+            NumberOfUsersNotClaimed = userdata.NumberOfUsersNotClaimed;
+        } else {
+            UserCanReceiveQuantity = superUserData.UserCanReceiveQuantity;
+            NumberOfUsersNotClaimed = superUserData.NumberOfUsersNotClaimed;
+        }
+        require(UserCanReceiveQuantity > 1000 || NumberOfUsersNotClaimed > 1000, "Without your reward:(");
         uint256 RewardCount;
-
-        if(userdata.NumberOfUsersNotClaimed > 1000 && userdata.UserCanReceiveQuantity < 1000){
-            RewardCount = userdata.NumberOfUsersNotClaimed;
+        if (NumberOfUsersNotClaimed > 1000 && UserCanReceiveQuantity < 1000) {
+            RewardCount = NumberOfUsersNotClaimed;
         }
-        if(userdata.UserCanReceiveQuantity > 1000 && userdata.NumberOfUsersNotClaimed < 1000){
-            RewardCount = userdata.UserCanReceiveQuantity;
+        if (UserCanReceiveQuantity > 1000 && NumberOfUsersNotClaimed < 1000) {
+            RewardCount = UserCanReceiveQuantity;
         }
-        if(userdata.UserCanReceiveQuantity > 1000 && userdata.NumberOfUsersNotClaimed > 1000){
-            RewardCount = userdata.UserCanReceiveQuantity.add(userdata.NumberOfUsersNotClaimed);
+        if (UserCanReceiveQuantity > 1000 && NumberOfUsersNotClaimed > 1000) {
+            RewardCount = UserCanReceiveQuantity.add(NumberOfUsersNotClaimed);
         }
-        userdata.UserCanReceiveQuantity = 0;
-        userdata.NumberOfUsersNotClaimed = 0;
-        userdata.Count++;
-        userdata.PickUpThisWeek = true;
-        MfiAddress.safeTransfer(msg.sender, RewardCount);
-        for (uint256 i = 0; i < superUserAddress.length; i++) {
-            if (superUserAddress[i] == msg.sender) {
-                supers = true;
-            }
+        if (count == 1) {
+            userdata.UserCanReceiveQuantity = 0;
+            userdata.NumberOfUsersNotClaimed = 0;
+            userdata.Count++;
+            userdata.PickUpThisWeek = true;
+        } else {
+            superUserData.UserCanReceiveQuantity = 0;
+            superUserData.NumberOfUsersNotClaimed = 0;
+            superUserData.Count++;
+            superUserData.PickUpThisWeek = true;
         }
-        emit MFIWithdrawal(msg.sender, userdata.UserCanReceiveQuantity, block.number, supers);
+        MfiAddress.safeTransfer(userAddr, RewardCount);
     }
 
     function UpdateUser() private {
@@ -249,7 +269,7 @@ contract mfiincone is Ownable {
             judgment(userAddress[i]);
         }
         for (uint256 i = 0; i < superUserAddress.length; i++) {
-            judgment(superUserAddress[i]);
+            superJudgment(superUserAddress[i]);
         }
     }
 
@@ -257,6 +277,13 @@ contract mfiincone is Ownable {
         if (userData[useradd].PickUpThisWeek == false) {
             userData[useradd].NumberOfUsersNotClaimed += userData[useradd].UserCanReceiveQuantity;
             userData[useradd].UserCanReceiveQuantity = 0;
+        }
+    }
+
+    function superJudgment(address useradd) private {
+        if (SuperUserData[useradd].PickUpThisWeek == false) {
+            SuperUserData[useradd].NumberOfUsersNotClaimed += SuperUserData[useradd].UserCanReceiveQuantity;
+            SuperUserData[useradd].UserCanReceiveQuantity = 0;
         }
     }
 }
