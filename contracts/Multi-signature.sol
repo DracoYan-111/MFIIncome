@@ -1,8 +1,10 @@
-pragma experimental ABIEncoderV2;
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
 
-interface mfiincone{
-    function SetUserRewardCount(address[] calldata _userAddress, address[] calldata _superUserAddress) external  returns (bool);
+interface mfiincone {
+    function SetUserRewardCount(address[] calldata _userAddress, address[] calldata _superUserAddress) external returns (bool);
 }
+
 contract MultiSig {
 
     // ============ Events ============
@@ -22,6 +24,7 @@ contract MultiSig {
     uint256 public required;
     uint256 public transactionCount;
     uint256 public ctionId;
+    bool public whetherSucceed = false;
 
     // ============ Structs ============
 
@@ -84,13 +87,14 @@ contract MultiSig {
     }
 
     // ============ Constructor ============
+
+
     /**
      * 合同构建者设置初始所有者和所需的确认数量。
-     *
      * @param  _owners    初始所有者列表(数组)
      * @param  _required  所需确定的数量
      */
-    constructor(address[] memory _owners, uint256 _required, address mfidestination) public validRequirement(_owners.length, _required){
+    constructor(address[] memory _owners, uint256 _required, address mfidestination)  validRequirement(_owners.length, _required){
         for (uint256 i = 0; i < _owners.length; i++) {
             require(!isOwner[_owners[i]] && _owners[i] != ADDRESS_ZERO);
             isOwner[_owners[i]] = true;
@@ -99,20 +103,22 @@ contract MultiSig {
         required = _required;
         destination = mfidestination;
     }
-
     /**
      *允许所有者提交并确认交易
+     *@param  _userAddress  普通节点数组
+     *@param  _superUserAddress 超级节点数组
      */
     function submitTransaction(address[] memory _userAddress, address[] memory _superUserAddress) public returns (uint256){
-        uint256 transactionId = addTransaction(_userAddress,_superUserAddress);
+        uint256 transactionId = addTransaction(_userAddress, _superUserAddress);
         ctionId = transactionId;
         confirmTransaction(transactionId);
+        whetherSucceed = true;
         return transactionId;
     }
 
+
     /**
      * 允许所有者确认交易.
-     *
      * @param  transactionId  Transaction ID.交易编号。
      */
     function confirmTransaction(uint256 transactionId) public ownerExists(msg.sender) transactionExists(transactionId) notConfirmed(transactionId, msg.sender) {
@@ -120,6 +126,7 @@ contract MultiSig {
 
         executeTransaction(transactionId);
     }
+
     /**
      * 允许所有者执行已确认的交易
      * @param  transactionId  交易编号。
@@ -129,10 +136,11 @@ contract MultiSig {
         if (isConfirmed(transactionId)) {
             for (uint256 i = 0; i < owners.length; i++) {
                 confirmations[transactionId][owners[i]] = false;
+                whetherSucceed = false;
             }
             Transaction storage txn = transactions[transactionId];
             txn.executed = true;
-            mfiincone(destination).SetUserRewardCount(txn.userAddress,txn.superUserAddress);
+            mfiincone(destination).SetUserRewardCount(txn.userAddress, txn.superUserAddress);
 
         }
     }
@@ -155,19 +163,30 @@ contract MultiSig {
                 return true;
             }
         }
+        return false;
     }
-    /*
-   添加交易
-   传入 交易目标地址  交易以太币价值 交易数据有效载荷 交易编号
-   */
+
+    /**
+     * 添加交易
+     * @param  _userAddress  普通节点数组
+     * @param  _superUserAddress 超级节点数组
+     * @return  transactionId  交易id
+     */
     function addTransaction(address[] memory _userAddress, address[] memory _superUserAddress) internal notNull(destination) returns (uint256){
         uint256 transactionId = 1;
         transactions[transactionId] = Transaction({
-        userAddress:_userAddress,
-        superUserAddress:_superUserAddress,
+        userAddress : _userAddress,
+        superUserAddress : _superUserAddress,
         executed : false
         });
         return transactionId;
     }
 
+    /**
+    * 查看提交状态
+    * @return  whetherSucceed  交易是否成功
+    */
+    function GetWhetherSucceed() public view returns (bool){
+        return whetherSucceed;
+    }
 }

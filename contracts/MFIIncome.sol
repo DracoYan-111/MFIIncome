@@ -1,3 +1,6 @@
+//SPDX-License-Identifier:MIT
+pragma solidity ^0.8.4;
+
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -119,7 +122,7 @@ contract mfiincone is Ownable {
     /*
     mif地址,时间跨度(秒),每周奖励总数
     */
-    constructor(ERC20 _mfiAddress, uint256 _CycleOutput) public {
+    constructor(ERC20 _mfiAddress, uint256 _CycleOutput)  {
         MfiAddress = _mfiAddress;
         CycleOutput = _CycleOutput;
     }
