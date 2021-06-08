@@ -82,16 +82,18 @@ contract mfiincone is Ownable {
     using SafeMath for uint256;
 
     //MFI地址
-    ERC20 public MfiAddress;
+    ERC20 public MfiAddress = ERC20(address(0));
     //Mfi可提取总数
     uint256 public MFICount = 1;
-    //每个周期产出数量
-    uint256 CycleOutput;
     //节点用户
     address[] userAddress;
     //超级节点用户
     address[] superUserAddress;
 
+    //节点用户奖励数组
+    uint256[] UserRewards;
+    //超级节点用户奖励数组
+    uint256[] superUserRewards;
 
     struct userCount {
         //用户可领取数量
@@ -122,9 +124,8 @@ contract mfiincone is Ownable {
     /*
     mif地址,时间跨度(秒),每周奖励总数
     */
-    constructor(ERC20 _mfiAddress, uint256 _CycleOutput)  {
+    constructor(ERC20 _mfiAddress)  {
         MfiAddress = _mfiAddress;
-        CycleOutput = _CycleOutput;
     }
 
     //---------------------------ADMINISTRATOR FUNCTION --------------------------
@@ -140,18 +141,16 @@ contract mfiincone is Ownable {
     设置奖励用户
     传入 用户数组
     */
-    function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2 returns (bool){
+    function SetUserRewardCount(address[] memory _userAddress, uint256[] memory _userRewards, address[] memory _superUserAddress, uint256[] memory _superUserRewards) external onlyOwner2 returns (bool){
         UpdateUser();
         userAddress = _userAddress;
         superUserAddress = _superUserAddress;
-        uint256 count = GetReward(userAddress);
         for (uint256 i = 0; i < userAddress.length; i++) {
-            userData[userAddress[i]].UserCanReceiveQuantity = count;
+            userData[userAddress[i]].UserCanReceiveQuantity = _userRewards[i];
             userData[userAddress[i]].PickUpThisWeek = false;
         }
-        uint256 count1 = GetReward(superUserAddress);
         for (uint256 i = 0; i < superUserAddress.length; i++) {
-            SuperUserData[superUserAddress[i]].UserCanReceiveQuantity = count1;
+            SuperUserData[superUserAddress[i]].UserCanReceiveQuantity = _superUserRewards[i];
             SuperUserData[superUserAddress[i]].PickUpThisWeek = false;
         }
         return true;
@@ -165,13 +164,6 @@ contract mfiincone is Ownable {
         MfiAddress.safeTransfer(_userAddr, _count);
     }
 
-    /*
-    设置产出数量
-    传入 产出数量
-    */
-    function SetCycleOutput(uint256 _CycleOutput) external onlyOwner {
-        CycleOutput = _CycleOutput;
-    }
 
     //---------------------------INQUIRE FUNCTION --------------------------
     /*
@@ -218,12 +210,6 @@ contract mfiincone is Ownable {
         return (superUserAddress.length, superUserAddress);
     }
 
-    /*
-    计算用户应得奖励数
-    */
-    function GetReward(address[] memory _users) public view returns (uint256){
-        return CycleOutput.div(_users.length);
-    }
 
 
     //--------------------------- USER FUNCTION --------------------------
