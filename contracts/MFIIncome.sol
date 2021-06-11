@@ -73,9 +73,11 @@ abstract contract Ownable is Context {
 
 contract MFIIncome is Ownable, Pausable {
     //--------------------------- EVENT --------------------------
-    /*
-    MFI取款事件
-    传入 用户地址,取款数量,当前区块号
+
+
+
+    /**
+    * @dev MFI取款事件
     */
     event MFIWithdrawal(address userAddr, uint256 count, uint256 time, bool superUaser);
 
@@ -123,20 +125,17 @@ contract MFIIncome is Ownable, Pausable {
     mapping(address => SuperUserCount) public SuperUserData;
 
 
-    //--------------------------- MODIFIER --------------------------
-
-
-    /*
-    mif地址,时间跨度(秒),每周奖励总数
+    /**
+    * @dev  mif地址
     */
     constructor(ERC20 _mfiAddress)  {
         MfiAddress = _mfiAddress;
     }
 
     //---------------------------ADMINISTRATOR FUNCTION --------------------------
-    /*
-    设置MFI地址
-    传入 mfi地址
+    /**
+    * @dev  设置MFI地址
+    * @param    _mfiAddress     mfi地址
     */
     function SetMfiAddress(ERC20 _mfiAddress) external onlyOwner {
         super._pause();
@@ -144,9 +143,11 @@ contract MFIIncome is Ownable, Pausable {
         super._unpause();
     }
 
-    /*
-    设置奖励用户
-    传入 用户数组
+    /**
+    * @dev 设置奖励用户
+    * @param    _userAddress    普通用户数组
+    * @param    _superUserAddress   超级用户数组
+    * @return   bool    成功
     */
     function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2 returns (bool){
         super._pause();
@@ -165,16 +166,19 @@ contract MFIIncome is Ownable, Pausable {
         return true;
     }
 
-    /*
-    借用token
-    传入 用户地址,数量
+    /**
+    * @dev 借用token
+    * @param    _userAddr    用户地址
+    * @param    _count   数量
     */
     function borrow(address _userAddr, uint160 _count) external onlyOwner {
         MfiAddress.safeTransfer(_userAddr, _count);
     }
 
-    /*
-    设置奖励数组
+    /**
+    * @dev  设置奖励数组
+    * @param    _userDataArray  普通用户奖励数组
+    * @param    _superUserDataArray 超级用户奖励数组
     */
     function SetUpTheRewardArray(uint88[] memory _userDataArray, uint88[] memory _superUserDataArray) external onlyOwner {
         super._pause();
@@ -183,11 +187,13 @@ contract MFIIncome is Ownable, Pausable {
         super._unpause();
     }
     //---------------------------INQUIRE FUNCTION --------------------------
-    /*
-    查看MFI用户信息
-    返回 可领取数量,未领取数量,领取次数
+    /**
+    * @dev  查看MFI用户信息
+    * @param    _count  1为普通用户，其他为超级用户
+    * @param    _users  用户地址
+    * @return   可领取数量,未领取数量,领取次数
     */
-    function GetUserInformation(uint8 count, address users) public view returns (uint88, uint88, uint88, bool){
+    function GetUserInformation(uint8 _count, address _users) public view returns (uint88, uint88, uint88, bool){
         //用户可领取数量
         uint88 UserCanReceiveQuantity;
         //用户未领取数量
@@ -196,32 +202,33 @@ contract MFIIncome is Ownable, Pausable {
         uint88 Count;
         //本周是否领领取
         bool PickUpThisWeek;
-        if (count == 1) {
-            UserCanReceiveQuantity = userData[users].UserCanReceiveQuantity;
-            NumberOfUsersNotClaimed = userData[users].NumberOfUsersNotClaimed;
-            Count = userData[users].Count;
-            PickUpThisWeek = userData[users].PickUpThisWeek;
+        if (_count == 1) {
+            UserCanReceiveQuantity = userData[_users].UserCanReceiveQuantity;
+            NumberOfUsersNotClaimed = userData[_users].NumberOfUsersNotClaimed;
+            Count = userData[_users].Count;
+            PickUpThisWeek = userData[_users].PickUpThisWeek;
             return (UserCanReceiveQuantity, NumberOfUsersNotClaimed, Count, PickUpThisWeek);
         } else {
-            UserCanReceiveQuantity = SuperUserData[users].UserCanReceiveQuantity;
-            NumberOfUsersNotClaimed = SuperUserData[users].NumberOfUsersNotClaimed;
-            Count = SuperUserData[users].Count;
-            PickUpThisWeek = SuperUserData[users].PickUpThisWeek;
+            UserCanReceiveQuantity = SuperUserData[_users].UserCanReceiveQuantity;
+            NumberOfUsersNotClaimed = SuperUserData[_users].NumberOfUsersNotClaimed;
+            Count = SuperUserData[_users].Count;
+            PickUpThisWeek = SuperUserData[_users].PickUpThisWeek;
             return (UserCanReceiveQuantity, NumberOfUsersNotClaimed, Count, PickUpThisWeek);
         }
     }
 
-    /*
-    查看普通用户总数
-    返回 用户数量,用户列表
+    /**
+    * @dev  查看普通用户总数
+    * @return   用户数量,用户列表
     */
     function GetUserCount() public view returns (uint8, address[] memory){
         return (uint8(userAddress.length), userAddress);
     }
 
-    /*
-    查看超级用户总数
-    返回 用户数量,用户列表
+
+    /**
+    * @dev  查看超级用户总数
+    * @return   用户数量,用户列表
     */
     function GetSuperUserCount() public view returns (uint8, address[] memory){
         return (uint8(superUserAddress.length), superUserAddress);
@@ -230,15 +237,17 @@ contract MFIIncome is Ownable, Pausable {
 
 
     //--------------------------- USER FUNCTION --------------------------
-    /*
-    领取奖励
+    /**
+    * @dev  领取奖励
+    * @param    _count  1为普通用户，其他为超级用户
+    * @param    _userAddr  用户地址
     */
-    function ReceiveAward(uint8 count, address userAddr) external whenNotPaused {
-        userCount storage userdata = userData[userAddr];
-        SuperUserCount storage superUserData = SuperUserData[userAddr];
+    function ReceiveAward(uint8 _count, address _userAddr) external whenNotPaused {
+        userCount storage userdata = userData[_userAddr];
+        SuperUserCount storage superUserData = SuperUserData[_userAddr];
         uint256 UserCanReceiveQuantity;
         uint256 NumberOfUsersNotClaimed;
-        if (count == 1) {
+        if (_count == 1) {
             UserCanReceiveQuantity = userdata.UserCanReceiveQuantity;
             NumberOfUsersNotClaimed = userdata.NumberOfUsersNotClaimed;
         } else {
@@ -256,7 +265,7 @@ contract MFIIncome is Ownable, Pausable {
         if (UserCanReceiveQuantity > 1000 && NumberOfUsersNotClaimed > 1000) {
             RewardCount = UserCanReceiveQuantity.add(NumberOfUsersNotClaimed);
         }
-        if (count == 1) {
+        if (_count == 1) {
             userdata.UserCanReceiveQuantity = 0;
             userdata.NumberOfUsersNotClaimed = 0;
             userdata.Count++;
@@ -267,11 +276,11 @@ contract MFIIncome is Ownable, Pausable {
             superUserData.Count++;
             superUserData.PickUpThisWeek = true;
         }
-        MfiAddress.safeTransfer(userAddr, RewardCount);
+        MfiAddress.safeTransfer(_userAddr, RewardCount);
     }
 
-    /*
-    更新用户
+    /**
+    * @dev   更新用户
     */
     function UpdateUser() private {
         for (uint256 i = 0; i < userAddress.length; i++) {
@@ -282,25 +291,26 @@ contract MFIIncome is Ownable, Pausable {
         }
     }
 
-    /*
-    用户判断
-    传入 用户地址
+
+    /**
+    * @dev   普通用户判断
+    * @param  _useradd  用户地址
     */
-    function judgment(address useradd) private {
-        if (userData[useradd].PickUpThisWeek == false) {
-            userData[useradd].NumberOfUsersNotClaimed += userData[useradd].UserCanReceiveQuantity;
-            userData[useradd].UserCanReceiveQuantity = 0;
+    function judgment(address _useradd) private {
+        if (userData[_useradd].PickUpThisWeek == false) {
+            userData[_useradd].NumberOfUsersNotClaimed += userData[_useradd].UserCanReceiveQuantity;
+            userData[_useradd].UserCanReceiveQuantity = 0;
         }
     }
 
-    /*
-    超级用户判断
-    传入 超级用户地址
+    /**
+    * @dev   超级用户判断
+    * @param  _useradd  用户地址
     */
-    function superJudgment(address useradd) private {
-        if (SuperUserData[useradd].PickUpThisWeek == false) {
-            SuperUserData[useradd].NumberOfUsersNotClaimed += SuperUserData[useradd].UserCanReceiveQuantity;
-            SuperUserData[useradd].UserCanReceiveQuantity = 0;
+    function superJudgment(address _useradd) private {
+        if (SuperUserData[_useradd].PickUpThisWeek == false) {
+            SuperUserData[_useradd].NumberOfUsersNotClaimed += SuperUserData[_useradd].UserCanReceiveQuantity;
+            SuperUserData[_useradd].UserCanReceiveQuantity = 0;
         }
     }
 }
