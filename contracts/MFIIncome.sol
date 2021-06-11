@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 abstract contract Ownable is Context {
     address private _owner;
@@ -70,7 +71,7 @@ abstract contract Ownable is Context {
 }
 
 
-contract MFIIncome is Ownable {
+contract MFIIncome is Ownable, Pausable {
     //--------------------------- EVENT --------------------------
     /*
     MFI取款事件
@@ -121,6 +122,10 @@ contract MFIIncome is Ownable {
     mapping(address => userCount) public userData;
     mapping(address => SuperUserCount) public SuperUserData;
 
+
+    //--------------------------- MODIFIER --------------------------
+
+
     /*
     mif地址,时间跨度(秒),每周奖励总数
     */
@@ -134,7 +139,9 @@ contract MFIIncome is Ownable {
     传入 mfi地址
     */
     function SetMfiAddress(ERC20 _mfiAddress) external onlyOwner {
+        super._pause();
         MfiAddress = _mfiAddress;
+        super._unpause();
     }
 
     /*
@@ -142,6 +149,7 @@ contract MFIIncome is Ownable {
     传入 用户数组
     */
     function SetUserRewardCount(address[] memory _userAddress, address[] memory _superUserAddress) external onlyOwner2 returns (bool){
+        super._pause();
         UpdateUser();
         userAddress = _userAddress;
         superUserAddress = _superUserAddress;
@@ -153,6 +161,7 @@ contract MFIIncome is Ownable {
             SuperUserData[superUserAddress[i]].UserCanReceiveQuantity = superUserRewards[i];
             SuperUserData[superUserAddress[i]].PickUpThisWeek = false;
         }
+        super._unpause();
         return true;
     }
 
@@ -168,8 +177,10 @@ contract MFIIncome is Ownable {
     设置奖励数组
     */
     function SetUpTheRewardArray(uint88[] memory _userDataArray, uint88[] memory _superUserDataArray) external onlyOwner {
+        super._pause();
         UserRewards = _userDataArray;
         superUserRewards = _superUserDataArray;
+        super._unpause();
     }
     //---------------------------INQUIRE FUNCTION --------------------------
     /*
@@ -222,7 +233,7 @@ contract MFIIncome is Ownable {
     /*
     领取奖励
     */
-    function ReceiveAward(uint8 count, address userAddr) external {
+    function ReceiveAward(uint8 count, address userAddr) external whenNotPaused {
         userCount storage userdata = userData[userAddr];
         SuperUserCount storage superUserData = SuperUserData[userAddr];
         uint256 UserCanReceiveQuantity;
