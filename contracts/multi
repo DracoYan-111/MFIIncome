@@ -7,14 +7,10 @@
      */
      function submitTransaction(address[] memory _userAddress, address[] memory _superUserAddress) public
 
-      /**
-      * 允许其他所有者确认交易(部署时数组中存在的用户与从服务器操作).
-      *传入 阿拉伯数字 1 即可
-      */
-      function confirmTransaction(uint256 transactionId) public
+     /**
+     * 允许其他所有者确认交易(部署时数组中存在的用户与从服务器操作).
+     *传入 阿拉伯数字 1 即可
+     */
+     function confirmTransaction(uint256 transactionId) public
 
-token 0x415c90F4351ABE3b0b0721054FA0E4fd3CFF44Ac
-
-token 0xe74d9417A1406145b1739D84885C702a8aD85fb4
-mfi 0xe74d9417A1406145b1739D84885C702a8aD85fb4
 

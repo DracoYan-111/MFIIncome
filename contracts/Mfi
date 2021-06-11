@@ -1,5 +1,5 @@
 部署：
-    mif地址,时间跨度(秒),每周奖励总数
+    mif地址
 管理员方法
      /*
      设置多签权限地址
@@ -19,17 +19,11 @@
      */
      function borrow(address _userAddr, uint256 _count) external onlyOwner
 
-     /*
-     设置领取间隔
-     传入 区块间隔
+     /**
+     设置奖励数组
+     传入 普通用户奖励数组,超级用户奖励数组
      */
-     function SetCollectionInterval(uint256 _BlockInterval) external onlyOwner
-
-    /*
-    设置产出数量
-    传入 产出数量
-    */
-    function SetCycleOutput(uint256 _CycleOutput) external onlyOwner
+    function SetUpTheRewardArray(uint88[] memory _userDataArray, uint88[] memory _superUserDataArray) external onlyOwner
 多签方法
      /*
      设置奖励用户
@@ -44,7 +38,6 @@
       返回 可领取数量,未领取数量,领取次数
       */
       function GetUserInformation(uint8 count, address usera) public
-
 
       /*
       查看普通用户总数
