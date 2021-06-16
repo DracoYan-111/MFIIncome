@@ -87,7 +87,7 @@ contract MFIIncome is Ownable, Pausable {
     //MFI地址
     ERC20 public MfiAddress = ERC20(address(0));
     //Mfi可提取总数
-    uint88 public MFICount = 1;
+    uint88 public MFICount;
     //节点用户
     address[] public userAddress;
     //超级节点用户
@@ -314,3 +314,4 @@ contract MFIIncome is Ownable, Pausable {
         }
     }
 }
+
