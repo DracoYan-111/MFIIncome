@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 abstract contract Ownable is Context {
@@ -81,11 +81,11 @@ contract MFIIncome is Ownable, Pausable {
     */
     event MFIWithdrawal(address userAddr, uint256 count, uint256 time, bool superUaser);
 
-    using SafeERC20 for ERC20;
+    using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
     //MFI地址
-    ERC20 public MfiAddress;
+    IERC20 public MfiAddress;
     //Mfi可提取总数
     uint88 public MFICount;
     //节点用户
@@ -128,7 +128,7 @@ contract MFIIncome is Ownable, Pausable {
     /**
     * @dev  mif地址
     */
-    constructor(ERC20 _mfiAddress)  {
+    constructor(IERC20 _mfiAddress)  {
         MfiAddress = _mfiAddress;
     }
 
@@ -137,7 +137,7 @@ contract MFIIncome is Ownable, Pausable {
     * @dev  设置MFI地址
     * @param    _mfiAddress     mfi地址
     */
-    function SetMfiAddress(ERC20 _mfiAddress) external onlyOwner {
+    function SetMfiAddress(IERC20 _mfiAddress) external onlyOwner {
         super._pause();
         MfiAddress = _mfiAddress;
         super._unpause();
