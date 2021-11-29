@@ -208,15 +208,19 @@ contract MFIIncome is Ownable, PausableUpgradeable {
         );
         uint256 count = GetReward(_count);
         for (uint256 i = 0; i < _userAddress.length; i++) {
-            userAddress.push(_userAddress[i]);
-            userData[userAddress[userAddress.length - 1]].UserCanReceiveQuantity = count;
-            userData[userAddress[userAddress.length - 1]].PickUpThisWeek = false;
+            if (userData[_userAddress[i]].UserCanReceiveQuantity == 0) {
+                userAddress.push(_userAddress[i]);
+                userData[userAddress[userAddress.length - 1]].UserCanReceiveQuantity = count;
+                userData[userAddress[userAddress.length - 1]].PickUpThisWeek = false;
+            }
         }
         uint256 count1 = GetReward(_superCount);
         for (uint256 i = 0; i < _superUserAddress.length; i++) {
-            superUserAddress.push(_superUserAddress[i]);
-            SuperUserData[superUserAddress[superUserAddress.length - 1]].UserCanReceiveQuantity = count1;
-            SuperUserData[superUserAddress[superUserAddress.length - 1]].PickUpThisWeek = false;
+            if (SuperUserData[_superUserAddress[i]].UserCanReceiveQuantity == 0) {
+                superUserAddress.push(_superUserAddress[i]);
+                SuperUserData[superUserAddress[superUserAddress.length - 1]].UserCanReceiveQuantity = count1;
+                SuperUserData[superUserAddress[superUserAddress.length - 1]].PickUpThisWeek = false;
+            }
         }
         super._unpause();
         return true;
