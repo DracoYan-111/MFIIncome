@@ -199,12 +199,14 @@ contract MFIIncome is Ownable, PausableUpgradeable {
             (userAddress.length < _count && _userAddress.length < _count)
             &&
             (superUserAddress.length < _superCount && _superUserAddress.length < _superCount)
+        ,"Check the length of the existing array"
         );
 
         require(
-            (userAddress.length + _userAddress.length < _count)
+            (userAddress.length + _userAddress.length <= _count)
             &&
-            (superUserAddress.length + _superUserAddress.length < _superCount)
+            (superUserAddress.length + _superUserAddress.length <= _superCount)
+        ,"Check the sum length"
         );
         uint256 count = GetReward(_count);
         for (uint256 i = 0; i < _userAddress.length; i++) {
