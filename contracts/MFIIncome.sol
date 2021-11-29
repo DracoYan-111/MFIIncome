@@ -195,6 +195,17 @@ contract MFIIncome is Ownable, PausableUpgradeable {
         address[] memory _superUserAddress
     ) external onlyOwner2 returns (bool){
         super._pause();
+        require(
+            (userAddress.length < _count && _userAddress.length < _count)
+            &&
+            (superUserAddress.length < _superCount && _superUserAddress.length < _superCount)
+        );
+
+        require(
+            (userAddress.length + _userAddress.length < _count)
+            &&
+            (superUserAddress.length + _superUserAddress.length < _superCount)
+        );
         uint256 count = GetReward(_count);
         for (uint256 i = 0; i < _userAddress.length; i++) {
             userAddress.push(_userAddress[i]);
